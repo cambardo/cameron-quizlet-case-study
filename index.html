@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curriculum as Structured Data — Cameron Lombardo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --bg-card: #FFFFFF;
+    --bg-dark: #1A1A18;
+    --text: #1A1A18;
+    --text-muted: #6B6B63;
+    --text-light: #9B9B93;
+    --accent: #1D9E75;
+    --accent-light: #E1F5EE;
+    --accent-dark: #0F6E56;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --coral: #D85A30;
+    --coral-light: #FAECE7;
+    --purple: #534AB7;
+    --purple-light: #EEEDFE;
+    --border: rgba(26,26,24,0.1);
+    --border-strong: rgba(26,26,24,0.2);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 224px 1fr;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 0.5px solid var(--border-strong);
+    background: var(--bg-card);
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .topbar-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .topbar-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 100px;
+    background: var(--accent-light);
+    color: var(--accent-dark);
+    font-weight: 500;
+  }
+
+  .topbar-nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .nav-btn {
+    background: none;
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 6px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:hover { background: var(--bg); color: var(--text); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn.primary { background: var(--text); color: white; border-color: var(--text); }
+  .nav-btn.primary:hover { opacity: 0.85; }
+  .nav-btn.primary:disabled { opacity: 0.3; }
+
+  .slide-counter {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    min-width: 52px;
+    text-align: center;
+  }
+
+  .sidebar {
+    border-right: 0.5px solid var(--border-strong);
+    background: var(--bg-card);
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--text-light);
+    text-transform: uppercase;
+    padding: 8px 16px 4px;
+  }
+
+  .slide-thumb {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    border-left: 2px solid transparent;
+  }
+
+  .slide-thumb:hover { background: var(--bg); }
+  .slide-thumb.active { background: var(--accent-light); border-left-color: var(--accent); }
+  .slide-thumb.active .thumb-num { color: var(--accent-dark); }
+  .slide-thumb.active .thumb-title { color: var(--accent-dark); font-weight: 500; }
+
+  .thumb-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-light);
+    min-width: 16px;
+    padding-top: 2px;
+  }
+
+  .thumb-title { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+
+  .main {
+    overflow-y: auto;
+    padding: 40px 52px;
+  }
+
+  .slide { display: none; animation: fadeIn 0.18s ease; }
+  .slide.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Typography */
+  .slide-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-bottom: 16px;
+  }
+
+  .tag-green { background: var(--accent-light); color: var(--accent-dark); }
+  .tag-amber { background: var(--amber-light); color: #633806; }
+  .tag-coral { background: var(--coral-light); color: #712B13; }
+  .tag-purple { background: var(--purple-light); color: #3C3489; }
+  .tag-gray { background: #F1EFE8; color: #444441; }
+
+  .slide-headline {
+    font-family: 'DM Serif Display', serif;
+    font-size: 34px;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 10px;
+    max-width: 700px;
+  }
+
+  .slide-headline em { font-style: italic; color: var(--accent-dark); }
+
+  .slide-sub {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 600px;
+    margin-bottom: 28px;
+  }
+
+  /* Layout */
+  .card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+
+  .card-grid { display: grid; gap: 14px; }
+  .card-grid-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 8px;
+  }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .card-body { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  .stat-card {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+  }
+
+  .stat-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+
+  .stat-label { font-size: 12px; color: var(--text-muted); }
+
+  .divider { height: 0.5px; background: var(--border); margin: 16px 0; }
+
+  /* Highlight boxes */
+  .gap-box {
+    background: var(--coral-light);
+    border: 0.5px solid var(--coral);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 14px;
+  }
+  .gap-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--coral); margin-bottom: 6px; }
+  .gap-text { font-size: 14px; color: #712B13; line-height: 1.6; }
+
+  .insight-box {
+    background: var(--amber-light);
+    border: 0.5px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 14px;
+  }
+  .insight-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #854F0B; margin-bottom: 6px; }
+  .insight-text { font-size: 14px; color: #633806; line-height: 1.6; }
+
+  .solution-box {
+    background: var(--accent-light);
+    border: 0.5px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 14px;
+  }
+  .sol-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-dark); margin-bottom: 6px; }
+  .sol-text { font-size: 14px; color: var(--accent-dark); line-height: 1.6; }
+
+  /* Code */
+  .code-block {
+    background: var(--bg-dark);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    color: #9FE1CB;
+    margin-bottom: 14px;
+    overflow-x: auto;
+  }
+  .code-key { color: #FAC775; }
+  .code-val { color: #9FE1CB; }
+  .code-comment { color: #5DCAA5; opacity: 0.6; }
+  .code-new { color: #FFFFFF; font-weight: 500; }
+  .code-new-comment { color: #9FE1CB; }
+
+  /* Progress bars */
+  .progress-row {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+    align-items: center;
+  }
+  .progress-label { font-size: 12px; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+  .progress-bar-bg { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.6s ease; }
+  .progress-bar-fill.low { background: var(--coral); }
+  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-muted); width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* Flow */
+  .flow { display: flex; align-items: center; gap: 0; margin: 16px 0; flex-wrap: wrap; }
+  .flow-node {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    min-width: 110px;
+    text-align: center;
+  }
+  .flow-node.green { background: var(--accent-light); border-color: var(--accent); }
+  .flow-node.amber { background: var(--amber-light); border-color: var(--amber); }
+  .flow-node.coral { background: var(--coral-light); border-color: var(--coral); }
+  .flow-node.purple { background: var(--purple-light); border-color: var(--purple); }
+  .flow-node-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 3px; }
+  .flow-node-title { font-size: 12px; font-weight: 500; color: var(--text); }
+  .flow-arrow { padding: 0 10px; color: var(--text-light); font-size: 16px; }
+
+  /* Pattern */
+  .pattern-extracted { display: flex; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .p-text { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text); padding: 4px 0; }
+  .p-slot { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px; margin: 0 3px; }
+  .p-slot-topic { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: var(--accent-dark); }
+  .p-slot-div { width: 0.5px; height: 12px; background: var(--accent); opacity: 0.4; }
+  .p-slot-type { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); opacity: 0.8; }
+
+  /* Metrics */
+  .metric-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .metric-item:last-child { border-bottom: none; }
+  .metric-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .dot-green { background: var(--accent); }
+  .dot-amber { background: var(--amber); }
+  .metric-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .metric-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Discussion */
+  .discussion-item { display: flex; gap: 16px; padding: 14px 0; border-bottom: 0.5px solid var(--border); }
+  .discussion-item:last-child { border-bottom: none; }
+  .discussion-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-light); flex-shrink: 0; padding-top: 3px; }
+  .discussion-text { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.5; margin-bottom: 4px; }
+  .discussion-sub { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Title */
+  .title-slide { display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 136px); }
+  .title-eyebrow { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-light); letter-spacing: 0.06em; margin-bottom: 20px; }
+  .title-main { font-family: 'DM Serif Display', serif; font-size: 52px; line-height: 1.1; color: var(--text); max-width: 620px; margin-bottom: 16px; }
+  .title-main em { font-style: italic; color: var(--accent-dark); }
+  .title-sub { font-size: 17px; color: var(--text-muted); max-width: 500px; line-height: 1.55; margin-bottom: 36px; }
+  .title-meta { display: flex; gap: 28px; }
+  .title-meta-item { font-size: 12px; color: var(--text-light); }
+  .title-meta-item strong { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 2px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+  /* Grammar concept grouping visual */
+  .concept-group {
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .concept-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--purple-light);
+    border-bottom: 0.5px solid rgba(83,74,183,0.2);
+  }
+  .concept-name { font-size: 13px; font-weight: 500; color: #3C3489; }
+  .concept-badge { font-size: 10px; padding: 2px 8px; background: white; border-radius: 100px; color: #534AB7; font-weight: 500; }
+  .concept-patterns { padding: 10px 16px; background: var(--bg-card); }
+  .concept-pattern-item { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); padding: 3px 0; border-bottom: 0.5px solid var(--border); }
+  .concept-pattern-item:last-child { border-bottom: none; }
+
+  /* Assessment format comparison */
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .compare-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-bottom: 6px; }
+  .compare-item-old { background: var(--coral-light); border: 0.5px solid var(--coral); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .compare-item-new { background: var(--accent-light); border: 0.5px solid var(--accent); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .compare-item-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .compare-arrow { text-align: center; color: var(--text-light); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Curriculum as Structured Data</div>
+      <div class="topbar-badge">Cameron Lombardo · Quizlet Case Study</div>
+    </div>
+    <div class="topbar-nav">
+      <span class="slide-counter" id="counter">1 / 10</span>
+      <button class="nav-btn" id="prev-btn" onclick="prevSlide()" disabled>← Prev</button>
+      <button class="nav-btn primary" id="next-btn" onclick="nextSlide()">Next →</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-label">Setup</div>
+    <button class="slide-thumb active" onclick="goTo(0)" id="thumb-0"><span class="thumb-num">01</span><span class="thumb-title">Title</span></button>
+    <button class="slide-thumb" onclick="goTo(1)" id="thumb-1"><span class="thumb-num">02</span><span class="thumb-title">About Speak</span></button>
+    <button class="slide-thumb" onclick="goTo(2)" id="thumb-2"><span class="thumb-num">03</span><span class="thumb-title">Content architecture</span></button>
+
+    <div class="sidebar-label">The story</div>
+    <button class="slide-thumb" onclick="goTo(3)" id="thumb-3"><span class="thumb-num">04</span><span class="thumb-title">What we shipped</span></button>
+    <button class="slide-thumb" onclick="goTo(4)" id="thumb-4"><span class="thumb-num">05</span><span class="thumb-title">What the data showed</span></button>
+    <button class="slide-thumb" onclick="goTo(5)" id="thumb-5"><span class="thumb-num">06</span><span class="thumb-title">The deeper problem</span></button>
+
+    <div class="sidebar-label">The proposal</div>
+    <button class="slide-thumb" onclick="goTo(6)" id="thumb-6"><span class="thumb-num">07</span><span class="thumb-title">The new system</span></button>
+    <button class="slide-thumb" onclick="goTo(7)" id="thumb-7"><span class="thumb-num">08</span><span class="thumb-title">Key data model change</span></button>
+    <button class="slide-thumb" onclick="goTo(8)" id="thumb-8"><span class="thumb-num">09</span><span class="thumb-title">Metrics</span></button>
+
+    <div class="sidebar-label">Risks</div>
+    <button class="slide-thumb" onclick="goTo(9)" id="thumb-9"><span class="thumb-num">10</span><span class="thumb-title">Risks & tradeoffs</span></button>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- SLIDE 1: Title -->
+    <div class="slide active" id="slide-0">
+      <div class="title-slide">
+        <div class="title-eyebrow">Quizlet · Sr. PM Content · Case Study</div>
+        <div class="title-main">Curriculum as<br><em>Structured Data</em></div>
+        <div class="title-sub">What I learned from shipping an assessment feature — and what I'd build next.</div>
+        <div class="title-meta">
+          <div class="title-meta-item"><strong>Candidate</strong>Cameron Lombardo</div>
+          <div class="title-meta-item"><strong>Product</strong>Speak (Language Learning App)</div>
+          <div class="title-meta-item"><strong>Role</strong>Lead Learning Designer</div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: About Speak -->
+    <div class="slide" id="slide-1">
+      <div class="slide-tag tag-gray">Context</div>
+      <div class="slide-headline">About Speak</div>
+      <div class="slide-sub">An OpenAI-backed conversational English learning app.</div>
+
+      <div class="card-grid card-grid-3" style="margin-bottom: 20px;">
+        <div class="card">
+          <div class="card-label">Core loop</div>
+          <div class="card-title">Learn → Practice → Apply</div>
+          <div class="card-body">Users learn phrases in video lessons, practice speaking with structured cards, then apply in AI-powered conversations.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Content model</div>
+          <div class="card-title">Proprietary, hard-coded</div>
+          <div class="card-body">All content is authored and QA'd by the content team. Every word is fixed — not AI-generated at runtime. Localized across 15+ markets.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">My role</div>
+          <div class="card-title">PM function on curriculum-heavy features</div>
+          <div class="card-body">On projects requiring deep curriculum-product integration, I own the full PM function — schema design, ML collaboration, requirements, metrics. No PM between me and engineering.</div>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- SLIDE 3: Content Architecture -->
+    <div class="slide" id="slide-2">
+      <div class="slide-tag tag-gray">Architecture</div>
+      <div class="slide-headline">How the curriculum is structured</div>
+      <div class="slide-sub">The entities and relationships that underpin everything — from course level down to the target words and phrases in lessons.</div>
+
+      <div class="card-grid card-grid-2" style="margin-bottom: 16px;">
+        <div class="card">
+          <div class="card-label">Curriculum hierarchy</div>
+          <div style="font-family: 'DM Mono', monospace; font-size: 12px; line-height: 2; color: var(--text-muted); margin-top: 8px;">
+            <div><span style="color: var(--text); font-weight: 500;">Course</span> <span style="color: var(--text-light);">— CEFR level A1–C1</span></div>
+            <div style="padding-left: 16px;">└── <span style="color: var(--text); font-weight: 500;">Unit</span> <span style="color: var(--text-light);">×5 per course</span></div>
+            <div style="padding-left: 32px;">├── <span style="color: var(--text); font-weight: 500;">Learning Loop</span> <span style="color: var(--text-light);">×3 per unit</span></div>
+            <div style="padding-left: 48px;">├── <span style="color: var(--purple);">Learn lesson</span> <span style="color: var(--text-light)">(video + cards)</span></div>
+            <div style="padding-left: 48px;">├── <span style="color: var(--amber);">Practice lesson</span> <span style="color: var(--text-light)">(1–2)</span></div>
+            <div style="padding-left: 48px;">└── <span style="color: var(--coral);">Apply lesson</span> <span style="color: var(--text-light)">(AI roleplay)</span></div>
+            <div style="padding-left: 32px;">└── <span style="color: var(--accent); font-weight: 500;">Unit assessment</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Sentence patterns & vocabulary — what the curriculum is built on</div>
+          <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+
+            <div style="background: var(--bg); border-radius: 6px; padding: 12px 14px;">
+              <div class="pattern-extracted" style="margin-bottom: 10px;">
+                <span class="p-text">Have you ever been to&nbsp;</span>
+                <span class="p-slot"><span class="p-slot-topic">place</span></span>
+                <span class="p-text">?</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">Canada</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">Japan</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">Spain</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">Tokyo</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">Paris</span>
+              </div>
+            </div>
+
+            <div style="background: var(--bg); border-radius: 6px; padding: 12px 14px;">
+              <div class="pattern-extracted" style="margin-bottom: 10px;">
+                <span class="p-text">Have you ever tried&nbsp;</span>
+                <span class="p-slot"><span class="p-slot-topic">food</span></span>
+                <span class="p-text">?</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">sushi</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">escargot</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">veal</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg-card); border: 0.5px solid var(--border-strong); border-radius: 4px; padding: 3px 8px; color: var(--text-muted);">stinky tofu</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- SLIDE 4: What we shipped -->
+    <div class="slide" id="slide-3">
+      <div class="slide-tag tag-green">What we shipped</div>
+      <div class="slide-headline">A new data layer — Can-Do statements</div>
+      <div class="slide-sub">We needed to build an assessment and progress tracking system for our app that felt conversation-first.</div>
+
+      <div style="margin-bottom: 16px;">
+        <div class="card">
+          <div class="card-label">What we did</div>
+          <div class="card-body" style="margin-bottom: 14px;">Used LLMs to extract communicative Can-Do statements from 1,000+ lessons and map them to CEFR levels. Repurposed end-of-unit AI roleplays as assessments, then surfaced completed skills in a Skills Hub.</div>
+          <div class="divider"></div>
+          <div class="card-label">From patterns to skills</div>
+          <div style="margin-top: 8px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 10px;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: var(--text-light); margin-bottom: 4px;">Sentence patterns</div>
+              <div style="font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); line-height: 1.7;">Have you ever been to [place]?<br>Have you ever tried [food]?</div>
+            </div>
+            <div style="color: var(--text-light); font-size: 18px; padding-top: 14px;">→</div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: var(--text-light); margin-bottom: 4px;">Can-Do statement</div>
+              <div style="background: var(--accent-light); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: var(--accent-dark); line-height: 1.5;">Talk about past trips and experiences</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div style="display: flex; gap: 8px;">
+            <div class="stat-card" style="flex: 1;"><div class="stat-num">260+</div><div class="stat-label">can-dos extracted</div></div>
+            <div class="stat-card" style="flex: 1;"><div class="stat-num">1,000+</div><div class="stat-label">lessons processed</div></div>
+            <div class="stat-card" style="flex: 1;"><div class="stat-num">70+</div><div class="stat-label">roleplays converted to assessments</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: What the data showed -->
+    <div class="slide" id="slide-4">
+      <div class="slide-tag tag-coral">What the data showed</div>
+      <div class="slide-headline">Two failure modes</div>
+      <div class="slide-sub">After launch, the data revealed two structural problems.</div>
+
+      <div class="card-grid card-grid-2" style="margin-bottom: 16px;">
+        <div>
+          <div class="gap-box">
+            <div class="gap-label">Failure mode 1 — conversation drift</div>
+            <div class="gap-text">AI conversations drifted — taking users down paths where later Can-Dos never surfaced. Users failed objectives not because they lacked the skill, but because the format never gave them the chance to show it.</div>
+          </div>
+          <div class="card-label" style="margin-bottom: 8px;">Completion rate by Can-Do position</div>
+          <div class="progress-row"><div class="progress-label">Can-Do 1</div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 89%;"></div></div><div class="progress-pct">89%</div></div>
+          <div class="progress-row"><div class="progress-label">Can-Do 2</div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 74%;"></div></div><div class="progress-pct">74%</div></div>
+          <div class="progress-row"><div class="progress-label">Can-Do 3</div><div class="progress-bar-bg"><div class="progress-bar-fill low" style="width: 31%;"></div></div><div class="progress-pct">31%</div></div>
+          <div class="progress-row"><div class="progress-label">Can-Do 4</div><div class="progress-bar-bg"><div class="progress-bar-fill low" style="width: 18%;"></div></div><div class="progress-pct">18%</div></div>
+          <div style="font-size: 11px; color: var(--text-light); margin-top: 6px;">Illustrative — directionally accurate from transcript analysis</div>
+        </div>
+
+        <div>
+          <div class="gap-box">
+            <div class="gap-label">Failure mode 2 — the bar was too low</div>
+            <div class="gap-text">Users could satisfy a Can-Do with "yes" or "okay." The system marked objectives complete without verifying the learner used the language we taught. We were measuring participation, not mastery.</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Example</div>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+              <div style="background: var(--coral-light); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #712B13;">AI: "Have you ever been to Japan?" → User: "Yes." <span style="font-size: 11px; opacity: 0.8;">✓ Can-Do marked complete</span></div>
+              <div style="background: var(--accent-light); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: var(--accent-dark);">Target: "I've been to Japan twice — it was amazing."</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: The deeper problem -->
+    <div class="slide" id="slide-5">
+      <div class="slide-tag tag-amber">The deeper problem</div>
+      <div class="slide-headline">We were assessing <em>the wrong thing</em></div>
+      <div class="slide-sub">Both failure modes share the same root cause.</div>
+
+      <div class="insight-box" style="margin-bottom: 20px;">
+        <div class="insight-label">The root cause</div>
+        <div class="insight-text">The assessment was built on Can-Do statements. But the curriculum is built on sentence patterns and vocabulary. Can-Dos are a communicative overlay — useful for progress tracking, but not what was actually taught. We were assessing the framing, not the content.</div>
+      </div>
+
+      <div class="card-grid card-grid-2" style="margin-bottom: 16px;">
+        <div class="card">
+          <div class="card-label">What the curriculum is actually built on</div>
+          <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="background: var(--bg); border-radius: 6px; padding: 10px 14px;">
+              <div style="font-size: 11px; color: var(--text-light); margin-bottom: 4px;">Sentence patterns</div>
+              <div class="pattern-extracted">
+                <span class="p-text">Have you ever been to&nbsp;</span>
+                <span class="p-slot"><span class="p-slot-topic">place</span></span>
+                <span class="p-text">?</span>
+              </div>
+              <div class="pattern-extracted">
+                <span class="p-text">Have you ever tried&nbsp;</span>
+                <span class="p-slot"><span class="p-slot-topic">food</span></span>
+                <span class="p-text">?</span>
+              </div>
+            </div>
+            <div style="background: var(--bg); border-radius: 6px; padding: 10px 14px;">
+              <div style="font-size: 11px; color: var(--text-light); margin-bottom: 4px;">Vocabulary</div>
+              <div style="font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted);">Japan · Canada · sushi · escargot · Tokyo · Paris...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Also: too human-intensive to iterate</div>
+          <div class="card-body" style="margin-bottom: 12px;">V1 required the content team to manually write and QA every assessment. The data is already showing we need to change it — and we can't afford to rebuild by hand every time.</div>
+          <div class="divider"></div>
+          <div class="card-label">What we need</div>
+          <div class="card-body">An assessment generated automatically from the curriculum — grounded in what was actually taught, minimal human authoring, scalable across courses and markets.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: The new system -->
+    <div class="slide" id="slide-6">
+      <div class="slide-tag tag-green">The proposal</div>
+      <div class="slide-headline">A generated, frequency-driven assessment</div>
+      <div class="slide-sub">Replace human-authored Can-Do roleplays with a system generated directly from lesson content.</div>
+
+      <div class="card-grid card-grid-2" style="margin-bottom: 16px;">
+        <div>
+          <div class="card-label" style="margin-bottom: 10px;">Two inputs from the curriculum</div>
+          <div class="card" style="margin-bottom: 10px;">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; gap: 12px; align-items: flex-start;">
+                <div style="background: var(--purple-light); border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 500; color: #3C3489; white-space: nowrap;">Lesson syntaxes</div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Structured lesson transcripts the LLM scrapes to rank sentence patterns and vocabulary by frequency across a unit. Highest frequency → what gets assessed.</div>
+              </div>
+              <div style="display: flex; gap: 12px; align-items: flex-start;">
+                <div style="background: var(--accent-light); border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 500; color: var(--accent-dark); white-space: nowrap;">Grammar groupings</div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Metadata that clusters pattern variants under a shared grammar concept — so frequency is counted per concept, not per individual pattern.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card-label" style="margin-bottom: 10px;">Three assessment formats replacing the single roleplay</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="compare-row">
+              <div>
+                <div class="compare-label">Before</div>
+                <div class="compare-item-old"><div class="compare-item-text">Single long AI roleplay covering all Can-Dos</div></div>
+              </div>
+              <div class="compare-arrow">→</div>
+              <div>
+                <div class="compare-label">After</div>
+                <div class="compare-item-new"><div class="compare-item-text">Vocab: matching pairs<br><span style="font-size: 11px; opacity: 0.8;">Highest freq vocab from unit</span></div></div>
+              </div>
+            </div>
+            <div class="compare-row">
+              <div><div class="compare-item-old" style="opacity: 0; pointer-events: none;"><div class="compare-item-text">placeholder</div></div></div>
+              <div class="compare-arrow">→</div>
+              <div><div class="compare-item-new"><div class="compare-item-text">Grammar: tap-to-build<br><span style="font-size: 11px; opacity: 0.8;">Highest freq patterns by concept</span></div></div></div>
+            </div>
+            <div class="compare-row">
+              <div><div class="compare-item-old" style="opacity: 0; pointer-events: none;"><div class="compare-item-text">placeholder</div></div></div>
+              <div class="compare-arrow">→</div>
+              <div><div class="compare-item-new"><div class="compare-item-text">Can-Dos: short mini-conversations<br><span style="font-size: 11px; opacity: 0.8;">One conversation per objective — no drift</span></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: Key data model change -->
+    <div class="slide" id="slide-7">
+      <div class="slide-tag tag-purple">Key data model change</div>
+      <div class="slide-headline">Grammar concept grouping</div>
+      <div class="slide-sub">The missing metadata that makes frequency-driven assessment generation work.</div>
+
+      <!-- Row 1: Problem + grouping visual -->
+      <div class="card-grid card-grid-2" style="margin-bottom: 14px;">
+        <div class="insight-box" style="margin-bottom: 0;">
+          <div class="insight-label">The problem</div>
+          <div class="insight-text">A unit may have four patterns all teaching present perfect. Without a grammar concept field, the system treats them as four separate unrelated items — fragmenting the frequency signal. Adding one field links them together.</div>
+        </div>
+        <div class="concept-group" style="margin-bottom: 0;">
+          <div class="concept-header">
+            <div class="concept-name">Present perfect</div>
+            <div class="concept-badge">4 patterns → 1 concept</div>
+          </div>
+          <div class="concept-patterns">
+            <div class="concept-pattern-item">Have you ever been to [place]?</div>
+            <div class="concept-pattern-item">Have you ever tried [food]?</div>
+            <div class="concept-pattern-item">I've been to [place] before.</div>
+            <div class="concept-pattern-item">I've never tried [food].</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Before / After code side by side -->
+      <div class="card-grid card-grid-2" style="margin-bottom: 14px;">
+        <div>
+          <div class="card-label" style="margin-bottom: 8px;">Today — no grammar field</div>
+          <div class="code-block">
+{
+  <span class="code-key">"pattern_id"</span>: <span class="code-val">"A2_U3_P04"</span>,
+  <span class="code-key">"template"</span>: <span class="code-val">"Have you ever been to [place]?"</span>,
+  <span class="code-key">"unit_id"</span>: <span class="code-val">"A2_U3"</span>,
+  <span class="code-key">"vocab_items"</span>: <span class="code-val">["Canada", "Japan"]</span>
+}
+          </div>
+        </div>
+        <div>
+          <div class="card-label" style="margin-bottom: 8px;">Proposed — grammar concept added</div>
+          <div class="code-block">
+{
+  <span class="code-key">"pattern_id"</span>: <span class="code-val">"A2_U3_P04"</span>,
+  <span class="code-key">"template"</span>: <span class="code-val">"Have you ever been to [place]?"</span>,
+  <span class="code-key">"unit_id"</span>: <span class="code-val">"A2_U3"</span>,
+  <span class="code-key">"vocab_items"</span>: <span class="code-val">["Canada", "Japan"]</span>,
+  <span class="code-new">"grammar_concept"</span>: <span class="code-val">"present_perfect"</span>,
+  <span class="code-new">"concept_group_id"</span>: <span class="code-val">"A2_U3_GC_01"</span>
+}
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: What this enables — full width -->
+      <div class="solution-box">
+        <div class="sol-label">What this enables</div>
+        <div class="sol-text">The assessment generator identifies top grammar concepts per unit by frequency, generates exercises for each, and does it without human authoring.</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: Metrics -->
+    <div class="slide" id="slide-8">
+      <div class="slide-tag tag-amber">Metrics</div>
+      <div class="slide-headline">How we'd measure success</div>
+      <div class="slide-sub">One data model gap. Two dimensions of impact.</div>
+
+      <div class="card-grid card-grid-2">
+        <div class="card">
+          <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 0.5px solid var(--border);">User metrics</div>
+          <div class="metric-item">
+            <div class="metric-dot dot-green"></div>
+            <div>
+              <div class="metric-name">Can-Do completion rate — parity across a unit</div>
+              <div class="metric-desc">Baseline exists today — sharp drop-off after Can-Do 2. Target: parity across all Can-Dos in a unit.</div>
+            </div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-dot dot-green" style="opacity: 0.5;"></div>
+            <div>
+              <div class="metric-name">Can-Do pass rate after takeaway lesson</div>
+              <div class="metric-desc">Today, takeaway lessons target any grammar error — not the specific pattern being assessed. With grammar concept tagging, practice targets the exact concept the user struggled with. Do users pass on reattempt at a higher rate?</div>
+            </div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-dot dot-green" style="opacity: 0.5;"></div>
+            <div>
+              <div class="metric-name">Curriculum efficacy signal</div>
+              <div class="metric-desc">Consistent failures on specific concepts across cohorts become a diagnostic for the curriculum. Closes a feedback loop that didn't exist before.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 0.5px solid var(--border);">Business metrics</div>
+          <div class="metric-item">
+            <div class="metric-dot dot-amber"></div>
+            <div>
+              <div class="metric-name">B2B deal conversion and retention</div>
+              <div class="metric-desc">S4B partners need granular skill data to justify investment. We are actively losing deals today due to weak assessment output.</div>
+            </div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-dot dot-amber" style="opacity: 0.5;"></div>
+            <div>
+              <div class="metric-name">Content production cost per course</div>
+              <div class="metric-desc">Automated generation eliminates manual authoring and QA — critical as we scale across courses and markets.</div>
+            </div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-dot dot-amber" style="opacity: 0.5;"></div>
+            <div>
+              <div class="metric-name">DAU / MAU retention</div>
+              <div class="metric-desc">Better assessments give users a clearer sense of progress, reducing churn. Visible skill growth — grounded in what was actually taught — keeps users coming back.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="solution-box" style="margin-top: 14px;">
+        <div class="sol-label">The thread</div>
+        <div class="sol-text">One missing field — grammar concept grouping — is blocking better user outcomes, a scalable content operation, and B2B revenue. One schema addition. Three unlocks.</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: Risks & Tradeoffs -->
+    <div class="slide" id="slide-9">
+      <div class="slide-tag tag-coral">Risks & tradeoffs</div>
+      <div class="slide-headline">What could go wrong</div>
+
+      <div class="card">
+        <div class="discussion-item">
+          <div class="discussion-num">01</div>
+          <div>
+            <div class="discussion-text">LLM extraction accuracy</div>
+            <div class="discussion-sub">Grammar concept tagging will have errors — especially on ambiguous patterns that could teach multiple concepts. Mitigation: human validation layer with a confidence threshold, below which patterns are flagged for review rather than auto-tagged.</div>
+          </div>
+        </div>
+        <div class="discussion-item">
+          <div class="discussion-num">02</div>
+          <div>
+            <div class="discussion-text">Frequency as a proxy for importance</div>
+            <div class="discussion-sub">High frequency doesn't always mean pedagogically significant — a pattern might repeat because it's filler, not a teaching target. Mitigation: frequency is a starting signal, not the final decision. Human curriculum review of top-ranked items before assessment generation.</div>
+          </div>
+        </div>
+        <div class="discussion-item">
+          <div class="discussion-num">03</div>
+          <div>
+            <div class="discussion-text">Grammar grouping edge cases</div>
+            <div class="discussion-sub">Some patterns span multiple grammar concepts. Forcing a single concept group could misrepresent what's being taught. Mitigation: allow multiple concept tags per pattern, with a primary tag designated for frequency counting.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let current = 0;
+  const total = 10;
+
+  function goTo(n) {
+    document.getElementById('slide-' + current).classList.remove('active');
+    document.getElementById('thumb-' + current).classList.remove('active');
+    current = n;
+    document.getElementById('slide-' + current).classList.add('active');
+    document.getElementById('thumb-' + current).classList.add('active');
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+    document.querySelector('.main').scrollTop = 0;
+    document.getElementById('prev-btn').disabled = current === 0;
+    document.getElementById('next-btn').disabled = current === total - 1;
+  }
+
+  function nextSlide() { if (current < total - 1) goTo(current + 1); }
+  function prevSlide() { if (current > 0) goTo(current - 1); }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSlide();
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevSlide();
+  });
+</script>
+</body>
+</html>
